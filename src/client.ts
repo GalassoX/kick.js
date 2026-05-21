@@ -23,12 +23,8 @@ export class KickClient extends EventEmitter {
 
 	public static async create(options: KickClientCreateOptions): Promise<KickClient> {
 		const client = new KickClient(options);
-		const [token] = await Promise.all([
-			client._getAccessToken(options.clientId, options.clientSecret),
-			client._webhookListener.startServer(options.serverPort),
-		])
-		client._token = token;
-		client.emit(KickEvents.WebServerReady);
+		client._token = await client._getAccessToken(options.clientId, options.clientSecret);
+		client._webhookListener.startServer(options.serverPort).then(() => client.emit(KickEvents.WebServerReady));
 		return client;
 	}
 

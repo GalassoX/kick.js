@@ -13,17 +13,16 @@ export class WebhookListener {
 		this._subscriptions = [];
 
 		this._app.use(express.json());
-		this._app.post('/webhook', this.webhookHandler.bind(this));
+		this._app.post('/webhook', (req, res) => this.webhookHandler(req, res));
 		this._app.use(this.sendNotFound);
 	}
 
 	private async webhookHandler(req: express.Request, res: express.Response): Promise<void> {
-		const isValidRequest = await WebhookListener.verifyRequest(req);
+		const isValidRequest = await this.verifyRequest(req);
 		if (!isValidRequest) return;
+		
+		if (!this.isValidSubscription(req, this._subscriptions)) return;
 
-		if (WebhookListener.verifySubscriptionId(req, this._subscriptions)) return;
-
-		console.log('Received webhook:', req.body);
 		KickClient.instance.emit('message', req.body);
 		res.sendStatus(200);
 	}
@@ -46,15 +45,15 @@ export class WebhookListener {
 		});
 	}
 
-	private static verifySubscriptionId(req: express.Request, subscriptions: Subscriptions[]): boolean {		
-		const subscriptionId = req.headers['kick-event-subscription-id'] as string;
+	private isValidSubscription(req: express.Request, subscriptions: Subscriptions[]): boolean {		
+		const subscriptionId = this.getHeader(req, 'kick-event-subscription-id');
 		return subscriptions.find(subscription => subscription.subscriptionId === subscriptionId) !== undefined;
 	}
 
-	private static async verifyRequest(req: express.Request): Promise<boolean> {
-		const messageId = req.headers['kick-event-message-id'] as string;
-		const timestamp = req.headers['kick-event-message-timestamp'] as string;
-		const kickSignature = req.headers['kick-event-signature'] as string;
+	private async verifyRequest(req: express.Request): Promise<boolean> {
+		const messageId = this.getHeader(req, 'kick-event-message-id');
+		const timestamp = this.getHeader(req, 'kick-event-message-timestamp');
+		const kickSignature = this.getHeader(req, 'kick-event-signature');
 
 		if (!messageId || !timestamp || !kickSignature) return false;
 
@@ -65,12 +64,12 @@ export class WebhookListener {
 		return this.verifyAndCompare(publicKey, signature, kickSignature);
 	}
 	
-	private static createSignature(messageId: string, timestamp: string, body: string): Buffer<ArrayBuffer> {
+	private createSignature(messageId: string, timestamp: string, body: string): Buffer<ArrayBuffer> {
 		const signatureString = `${messageId}.${timestamp}.${body}`;
 		return Buffer.from(signatureString);
 	}
 
-	private static parsePublicKey(bs: string) {
+	private parsePublicKey(bs: string) {
 		const pemStr = Buffer.isBuffer(bs) ? bs.toString("utf8") : bs;
 
 		if (!pemStr.includes("-----BEGIN PUBLIC KEY-----")) {
@@ -95,14 +94,14 @@ export class WebhookListener {
 		return keyObject;
 	}
 
-	private static verifyAndCompare(publicKey: crypto.KeyObject, body: Buffer<ArrayBuffer>, signature: string): boolean {
+	private verifyAndCompare(publicKey: crypto.KeyObject, body: Buffer<ArrayBuffer>, signature: string): boolean {
 		const sigBuffer = Buffer.from(
 			Buffer.isBuffer(signature) ? signature.toString("utf8") : signature,
 			"base64"
 		);
 
 		const isValid = crypto.verify(
-			"sha256",       // hash algorithm
+			"sha256",
 			Buffer.isBuffer(body) ? body : Buffer.from(body),
 			{
 				key: publicKey,
@@ -114,8 +113,14 @@ export class WebhookListener {
 		return isValid;
 	}
 
-	private static async getKickPublicKey(): Promise<string> {
+	private async getKickPublicKey(): Promise<string> {
 		const response = await Utils.sendGet<PublicKeyResponse>(KICK_ENDPOINTS.PUBLIC_KEY);
 		return response.data.public_key;
+	}
+
+	private getHeader(req: express.Request, key: string): string | undefined {
+		const header = req.headers[key];
+		if (!header || Array.isArray(header)) return;
+		return header;
 	}
 }
