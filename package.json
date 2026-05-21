@@ -1,0 +1,38 @@
+{
+  "name": "kick.js",
+  "version": "1.0.0a",
+  "description": "Library to interact with the Kick.com API",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["kick", "kick.com", "api", "kick api", "bot"],
+  "author": "GalassoX",
+  "license": "Apache-2.0",
+  "type": "module",
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.9.1",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GalassoX/kick.js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/GalassoX/kick.js/issues"
+  },
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"]
+}
