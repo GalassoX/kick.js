@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "pretty": false,
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "module": "node16",
+    "moduleResolution": "node16",
+    "target": "es2023",
+    "types": ["node"],
+    "lib": ["es2023"],
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "importHelpers": true,
+    "sourceMap": true,
+    "newLine": "lf",
+    "declaration": true,
+
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": false,
+    "noUncheckedSideEffectImports": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true,
+    "noImplicitAny": true
+  },
+  "include": ["src/**/*"]
+}
