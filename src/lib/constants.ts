@@ -55,3 +55,8 @@ export const KICK_ENDPOINTS = {
 export enum SubscriptionMethods {
 	Webhook = "webhook"
 };
+
+export enum KickEvents {
+	WebServerReady = "serverReady",
+	Message = "message"
+}

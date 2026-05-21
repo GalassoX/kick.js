@@ -41,7 +41,7 @@ export class Utils {
 
 	public static createHeadersWithAuthToken(authToken: string): Headers {
 		return new Headers({
-			Authorization: authToken
+			Authorization: `Bearer ${authToken}`
 		})
 	}
 }

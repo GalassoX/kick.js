@@ -1,32 +1,43 @@
 import EventEmitter from 'node:events';
 import { KickEvent } from './events.js';
-import { KICK_ENDPOINTS } from './lib/constants.js';
+import { KICK_ENDPOINTS, KickEvents } from './lib/constants.js';
 import { WebhookListener } from './webhooks/index.js';
 import { Utils } from './lib/utils.js';
 import { KickError } from './lib/kickerror.js';
-import type { KickClientCreateOptions, LoginAccessTokenResponseError, LoginAccessTokenResponseSuccess, WebhookEvent } from './types.js';
+import type { KickClientCreateOptions, LoginAccessTokenResponseError, LoginAccessTokenResponseSuccess } from './types.js';
 
 export class KickClient extends EventEmitter {
 	private _token: string | undefined;
 
 	private _events: KickEvent;
+	private _webhookListener: WebhookListener;
 	private static _instance: KickClient;
 
-	private constructor(clientId: string, clientSecret: string, subscriptions: WebhookEvent[]) {
+	private constructor(options: KickClientCreateOptions) {
 		super();
-
-		this._events = new KickEvent(this, subscriptions);
-		this._getAccessToken(clientId, clientSecret).then(() => {
-			this._events.subscribeEvent();
-		});
-
-		const webhookListener = new WebhookListener();
-		webhookListener.startServer();
 		KickClient._instance = this;
+
+		this._events = new KickEvent(this, options.subscriptions);
+		this._webhookListener = new WebhookListener();
 	}
 
-	public static create(options: KickClientCreateOptions): KickClient {
-		return new KickClient(options.clientId, options.clientSecret, options.subscriptions);
+	public static async create(options: KickClientCreateOptions): Promise<KickClient> {
+		const client = new KickClient(options);
+		const [token] = await Promise.all([
+			client._getAccessToken(options.clientId, options.clientSecret),
+			client._webhookListener.startServer(options.serverPort),
+		])
+		client._token = token;
+		client.emit(KickEvents.WebServerReady);
+		return client;
+	}
+
+	public async listenBroadcaster(broadcasterId: number) {
+		const subscriptions = await this._events.subscribeEvent(broadcasterId);
+		this._webhookListener.setSubcriptions([
+			...this._webhookListener.getSubcriptions(),
+			...subscriptions
+		]);
 	}
 
 	public get token(): string {
@@ -40,7 +51,7 @@ export class KickClient extends EventEmitter {
 		return KickClient._instance;
 	}
 
-	private async _getAccessToken(clientId: string, clientSecret: string): Promise<void> {
+	private async _getAccessToken(clientId: string, clientSecret: string): Promise<string> {
 
 		const body = new FormData();
 		body.set('grant_type', 'client_credentials');
@@ -50,9 +61,8 @@ export class KickClient extends EventEmitter {
 		const response = await Utils.sendPost<LoginAccessTokenResponseSuccess, LoginAccessTokenResponseError>(KICK_ENDPOINTS.ACCESS_TOKEN, body);
 
 		if (!('error' in response)) {
-			this._token = response.access_token;
+			return response.access_token;
 		} else {
-			this._token = undefined;
 			throw new KickError(response.error);
 		}
 	}

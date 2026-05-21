@@ -3,16 +3,17 @@ import crypto from 'node:crypto';
 import { KickClient } from '../client.js';
 import { KICK_ENDPOINTS } from '../lib/constants.js';
 import { Utils } from '../lib/utils.js';
-import type { PublicKeyResponse } from '../types.js';
+import type { PublicKeyResponse, Subscriptions } from '../types.js';
 
 export class WebhookListener {
-
-	private readonly PORT: string = process.env.PORT || '3000';
 	private _app = express();
+	private _subscriptions: Subscriptions[];
 
 	constructor() {
+		this._subscriptions = [];
+
 		this._app.use(express.json());
-		this._app.post('/webhook', this.webhookHandler);
+		this._app.post('/webhook', this.webhookHandler.bind(this));
 		this._app.use(this.sendNotFound);
 	}
 
@@ -20,25 +21,42 @@ export class WebhookListener {
 		const isValidRequest = await WebhookListener.verifyRequest(req);
 		if (!isValidRequest) return;
 
+		if (WebhookListener.verifySubscriptionId(req, this._subscriptions)) return;
+
 		console.log('Received webhook:', req.body);
 		KickClient.instance.emit('message', req.body);
 		res.sendStatus(200);
+	}
+
+	public setSubcriptions(subscriptions: Subscriptions[]): void {
+		this._subscriptions = subscriptions;
+	}
+
+	public getSubcriptions(): Subscriptions[] {
+		return this._subscriptions;
 	}
 
 	private sendNotFound(_req: express.Request, res: express.Response): void {
 		res.sendStatus(404);
 	}
 
-	public startServer(): void {
-		this._app.listen(this.PORT, () => {
-			console.log(`Server is running on port ${this.PORT}`);
+	public startServer(port: string): Promise<void> {
+		return new Promise((resolve) => {
+			this._app.listen(port, () => resolve());
 		});
+	}
+
+	private static verifySubscriptionId(req: express.Request, subscriptions: Subscriptions[]): boolean {		
+		const subscriptionId = req.headers['kick-event-subscription-id'] as string;
+		return subscriptions.find(subscription => subscription.subscriptionId === subscriptionId) !== undefined;
 	}
 
 	private static async verifyRequest(req: express.Request): Promise<boolean> {
 		const messageId = req.headers['kick-event-message-id'] as string;
 		const timestamp = req.headers['kick-event-message-timestamp'] as string;
 		const kickSignature = req.headers['kick-event-signature'] as string;
+
+		if (!messageId || !timestamp || !kickSignature) return false;
 
 		const publicKeyKick = await this.getKickPublicKey();
 		const publicKey = this.parsePublicKey(publicKeyKick);

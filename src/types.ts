@@ -2,6 +2,7 @@ export type KickClientCreateOptions = {
 	clientId: string;
 	clientSecret: string;
 	subscriptions: WebhookEvent[];
+	serverPort: string;
 };
 
 export type LoginAccessTokenResponseSuccess = {

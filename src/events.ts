@@ -14,12 +14,11 @@ export class KickEvent {
 		this._subscriptionIds = [];
 	}
 
-	public async subscribeEvent(): Promise<void> {
-
+	public async subscribeEvent(broadcasterUserId: number): Promise<Subscriptions[]> {
 		const headers = Utils.createHeadersWithAuthToken(this.client.token);
 
 		const body = {
-			broadcaster_user_id: 123,
+			broadcaster_user_id: broadcasterUserId,
 			events: this._subscriptionEvents.map(sub => (
 				{
 					name: sub.name,
@@ -38,8 +37,8 @@ export class KickEvent {
 					eventName: data.name
 				}
 			));
-
-			console.log(this._subscriptionIds)
+			return this._subscriptionIds;
 		}
+		return [];
 	}
 }
